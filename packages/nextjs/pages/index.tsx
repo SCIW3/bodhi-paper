@@ -235,6 +235,7 @@ const ETHSpace: NextPage<ETHSpaceProps> = ({
           note: newNoteContent,
           version: language,
           author: address,
+          book_bodhi_id: bookBodhiId,
         }),
       });
 
