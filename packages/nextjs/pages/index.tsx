@@ -157,7 +157,6 @@ const ETHSpace: NextPage<ETHSpaceProps> = ({
     setClickPosition({ x: event.clientX, y: viewportTopY + 100 });
   };
 
-
   useEffect(() => {
     // Handle query params
     const { lang, line } = router.query;
@@ -175,12 +174,8 @@ const ETHSpace: NextPage<ETHSpaceProps> = ({
     // Handle line decoration
     elements.forEach((element, index) => {
       const lineNumber = index + 1;
-      (element as HTMLElement).style.textDecoration = combinedNotesLines.has(lineNumber) 
-        ? "underline" 
-        : "none";
-      (element as HTMLElement).style.textDecorationStyle = combinedNotesLines.has(lineNumber) 
-        ? "dotted" 
-        : "none";
+      (element as HTMLElement).style.textDecoration = combinedNotesLines.has(lineNumber) ? "underline" : "none";
+      (element as HTMLElement).style.textDecorationStyle = combinedNotesLines.has(lineNumber) ? "dotted" : "none";
     });
 
     // Handle click events
@@ -361,6 +356,74 @@ const ETHSpace: NextPage<ETHSpaceProps> = ({
     { emoji: "🐣", address: "0x66", action: "bought", amount: "0.01", price: "0.175" },
   ];
 
+  // Update the state type to support decimals
+  const [sharesAmount, setSharesAmount] = useState<string>("1");
+
+  // Update the share amount validation and conversion
+  const getValidShareAmount = (amount: string): bigint => {
+    // Handle empty or invalid input
+    if (!amount || isNaN(parseFloat(amount))) {
+      return BigInt(0);
+    }
+    
+    // Ensure positive number
+    const parsedAmount = Math.max(0, parseFloat(amount));
+    // Convert to wei (18 decimals)
+    return BigInt(Math.floor(parsedAmount * (10 ** 18)));
+  };
+
+  // Update the contract read calls to use the new validation
+  const { data: buyPrice } = useScaffoldContractRead({
+    contractName: "Bodhi",
+    functionName: "getBuyPriceAfterFee",
+    args: [BigInt(0), getValidShareAmount(sharesAmount)],
+  });
+
+  const { writeAsync: buyShares, isLoading: isBuyingShares } = useScaffoldContractWrite({
+    contractName: "Bodhi",
+    functionName: "buy",
+    args: [BigInt(0), getValidShareAmount(sharesAmount)],
+    value: buyPrice,
+  });
+
+  // Add new state for single share price
+  const [singleSharePrice, setSingleSharePrice] = useState<bigint | null>(null);
+
+  // Add new contract read for single share price
+  const { data: singlePrice } = useScaffoldContractRead({
+    contractName: "Bodhi",
+    functionName: "getBuyPriceAfterFee",
+    args: [BigInt(0), BigInt(1) * BigInt(10 ** 18)],
+  });
+
+  // Update useEffect to set single share price
+  useEffect(() => {
+    if (singlePrice) {
+      setSingleSharePrice(singlePrice);
+    }
+  }, [singlePrice]);
+
+  // Add new contract read for user's share balance
+  const { data: userShares } = useScaffoldContractRead({
+    contractName: "Bodhi",
+    functionName: "balanceOf",
+    args: [address || "0x0", BigInt(0)],
+  });
+
+  // Update the contract read calls to use the new validation
+  const { data: sellPrice } = useScaffoldContractRead({
+    contractName: "Bodhi",
+    functionName: "getSellPriceAfterFee",
+    args: [BigInt(0), BigInt(1) * BigInt(10 ** 18)],
+  });
+
+  const { writeAsync: sellShares, isLoading: isSellingShares } = useScaffoldContractWrite({
+    contractName: "Bodhi",
+    functionName: "sell",
+    args: [BigInt(0), BigInt(1)],
+    value: sellPrice,
+  });
+
   return (
     <>
       {showInfoBox && (
@@ -402,9 +465,9 @@ const ETHSpace: NextPage<ETHSpaceProps> = ({
               </center>
               <center>
                 <br />
-                <b>Price for each shares</b>
+                <b>Price for 1 share</b>
                 <br />
-                <b>🔥 1.280 HSK 🔥</b>
+                {singleSharePrice && <b>🔥 {Number(singleSharePrice) / 10 ** 18} HSK 🔥</b>}
               </center>
               <br />
               <center>
@@ -423,10 +486,46 @@ const ETHSpace: NextPage<ETHSpaceProps> = ({
               </div>
             </center>
 
+            <center>
+              <br></br>
+              <b>My Shares</b>
+              <br></br>
+              {/* TODO: auto refresh the user shares */}
+              <div className="text-lg mb-4">{userShares ? `${Number(userShares) / 10 ** 18} shares` : "0 shares"}</div>
+              <div className="form-control w-full max-w-xs">
+                <label className="label">
+                  <span className="label-text">Number of shares</span>
+                </label>
+                <input
+                  type="number"
+                  placeholder="1"
+                  defaultValue="1"
+                  min="0.000000000000000001"
+                  step="0.000000000000000001"
+                  className="input input-bordered w-full max-w-xs"
+                  value={sharesAmount}
+                  onChange={e => setSharesAmount(e.target.value)}
+                />
+                {buyPrice && (
+                  <label className="label">
+                    <span className="label-text">Total Price: {Number(buyPrice) / 10 ** 18} ETH</span>
+                  </label>
+                )}
+              </div>
+            </center>
             <center className="mt-4">
-              <button className="btn btn-primary">Buy Shares</button>
+              <button className="btn btn-primary" onClick={() => buyShares()} disabled={isBuyingShares}>
+                {isBuyingShares ? "Buying..." : "Buy Shares"}
+              </button>
               &nbsp;&nbsp;&nbsp;&nbsp;
-              <button className="btn btn-primary">Sell Shares</button>
+                {/* TODO: fix the bug of sell shares */}
+              <button
+                className="btn btn-primary"
+                // onClick={() => sellShares()}
+                disabled={isSellingShares || !userShares || userShares < getValidShareAmount(sharesAmount)}
+              >
+                {isSellingShares ? "Selling..." : `Sell Shares`}
+              </button>
             </center>
           </div>
         </div>
