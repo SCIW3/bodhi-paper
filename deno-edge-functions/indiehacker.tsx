@@ -23,10 +23,12 @@ router
     const line = content.line;
     const note = content.note;
     const version = content.version;
+    const book_bodhi_id = content.book_bodhi_id || null;
+    
     const { data, error } = await supabase
       .from('indiehacker_book_notes')
       .insert([
-        { author, line, word, note, version }
+        { author, line, word, note, version, book_bodhi_id }
       ])
     console.log(data)
     
@@ -40,7 +42,6 @@ router
     }
   })
   .get("/notes", async (context) => {
-
     const supabase = createClient(
     // Supabase API URL - env var exported by default.
     Deno.env.get('SUPABASE_URL') ?? '',
@@ -48,10 +49,22 @@ router
     Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Querying data from Supabase
-    const { data, error } = await supabase
+    // Get book_bodhi_id from URL query parameters
+    const url = new URL(context.request.url);
+    const book_bodhi_id = url.searchParams.get('book_bodhi_id');
+
+    // Querying data from Supabase with conditional filter
+    let query = supabase
       .from('indiehacker_book_notes')
-      .select('*')
+      .select('*');
+    
+    if (book_bodhi_id) {
+      query = query.eq('book_bodhi_id', book_bodhi_id);
+    } else {
+      query = query.is('book_bodhi_id', null);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching data:', error);
@@ -61,7 +74,7 @@ router
     }
 
     context.response.body = data;
-})
+  })
 
 
 const app = new Application();

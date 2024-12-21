@@ -147,8 +147,8 @@ export const Header = () => {
             <Image alt="SE2 logo" className="cursor-pointer" fill src="/logo.svg" />
           </div>
           <div className="flex flex-col">
-            <span className="font-bold leading-tight">🤘 Indiehacker Operation System 🤘</span>
-            <span className="text-xs">ꄃ The mind operation system for indiehacker ꄃ.</span>
+            <span className="font-bold leading-tight">✨ Bitcoin Whitepaper ✨</span>
+            <span className="text-xs">ꄃ Read Bitcoin Whitepaper together! ꄃ.</span>
           </div>
         </Link>
         <ul className="hidden lg:flex lg:flex-nowrap menu menu-horizontal px-1 gap-2">

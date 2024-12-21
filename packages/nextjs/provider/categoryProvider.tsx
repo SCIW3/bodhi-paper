@@ -34,15 +34,10 @@ export const CategoryProvider = ({ children }: CategoryProviderProps) => {
     try {
       // 使用静态数据替代 API 调用
       const staticCategories: CategoryItem[] = [
-        { label: "Handbook 手册", href: "/" },
-        {
-          label: "Cases 案例集",
-          href: "https://github.com/NonceGeek/indiehacker-handbook/discussions/categories/cases-%E6%A1%88%E4%BE%8B%E9%9B%86",
-        },
-        { label: "Accelerator 修炼场", href: "https://github.com/NonceGeek/indiehacker-handbook/discussions/" },
-        // { label: "HackerHouse 黑客小屋", href: "hackerhouse" }, // TODO
-        { label: "Readings 其他资源", href: "readings" }, // TODO
-        { label: "About 关于", href: "about" }, // TODO
+        { label: "Bitcoin Whitepaper", href: "/" },
+        { label: "Info 论文链上信息", href: "/?show_info=true" },
+        { label: "About 关于", href: "https://en.wikipedia.org/wiki/Satoshi_Nakamoto" }, 
+        { label: "Gen RSS 生成 RSS 源", href: "TODO" }, 
       ];
       // const allCategory: CategoryItem = { label: "All 全部", href: "/" };
       // const categoriesArray = [allCategory, ...staticCategories];

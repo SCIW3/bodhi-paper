@@ -7,11 +7,12 @@ import path from "path";
 import ReactMarkdown from "react-markdown";
 import { useAccount } from "wagmi";
 import { ChevronDoubleLeftIcon, ChevronDoubleRightIcon } from "@heroicons/react/24/outline";
+import { useCommentsReader } from "~~/components/OnChainBookInteractor";
 import TopicCard from "~~/components/TopicCard";
 import { Address } from "~~/components/scaffold-eth";
 import { useScaffoldContractRead, useScaffoldContractWrite } from "~~/hooks/scaffold-eth";
 import { useCategoryContext } from "~~/provider/categoryProvider";
-import { useCommentsReader } from "~~/components/OnChainBookInteractor";
+
 interface ETHSpaceProps {
   markdownContentEn: string;
   markdownContentCn: string;
@@ -42,7 +43,7 @@ const ETHSpace: NextPage<ETHSpaceProps> = ({
   const [isExpanded, setIsExpanded] = useState(true);
   const [isBool, setIsBool] = useState(false);
   const [isExpandedRight, setIsExpandedRight] = useState(true);
-  const [language, setLanguage] = useState<"en" | "cn">("cn");
+  const [language, setLanguage] = useState<"en" | "cn">("en");
   const [notes, setNotes] = useState<Array<Note>>([]);
   const [combinedNotes, setCombinedNotes] = useState<Array<Note>>([]);
   const [selectedLine, setSelectedLine] = useState<number | null>(null);
@@ -56,7 +57,7 @@ const ETHSpace: NextPage<ETHSpaceProps> = ({
   const [newNoteWord, setNewNoteWord] = useState("");
 
   const [newNoteContent, setNewNoteContent] = useState("");
-  
+
   const { address } = useAccount();
   const { data: commentCount } = useScaffoldContractRead({
     contractName: "OnChainBook",
@@ -76,13 +77,21 @@ const ETHSpace: NextPage<ETHSpaceProps> = ({
     },
   });
 
+  // TODO: get the book bodhi id from the env.
+  const bookBodhiId = process.env.NEXT_PUBLIC_BOOK_BODHI_ID;
+
   const fetchNotes = async () => {
+    console.log("bookBodhiId", bookBodhiId);
     try {
-      const response = await fetch("https://indiehacker.deno.dev/notes");
+      if (!bookBodhiId) {
+        console.error("NEXT_PUBLIC_BOOK_BODHI_ID is not defined");
+        return;
+      }
+
+      const response = await fetch(`https://indiehacker.deno.dev/notes?book_bodhi_id=${bookBodhiId}`);
       const data = await response.json();
       setNotes(data);
       setNotesLines(new Set(data.filter((note: Note) => note.version === language).map((note: Note) => note.line)));
-      
     } catch (error) {
       console.error("Error fetching notes:", error);
     }
@@ -107,10 +116,7 @@ const ETHSpace: NextPage<ETHSpaceProps> = ({
       const combinedList = [...notes, ...onChainNotes];
       setCombinedNotes(combinedList);
 
-      const newCombinedNotesLines = new Set([
-        ...Array.from(notesLines),
-        ...onChainNotes.map(note => note.line)
-      ]);
+      const newCombinedNotesLines = new Set([...Array.from(notesLines), ...onChainNotes.map(note => note.line)]);
       setCombinedNotesLines(newCombinedNotesLines);
 
       console.log("onChainNotes", onChainNotes);
@@ -122,36 +128,6 @@ const ETHSpace: NextPage<ETHSpaceProps> = ({
       setCombinedNotesLines(new Set(notesLines));
     }
   }, [commentsReader.data, notes, notesLines, language]);
-
-  useEffect(() => {
-    const { lang, line } = router.query;
-    if (lang && (lang === "en" || lang === "cn")) {
-      setLanguage(lang);
-    }
-    if (line && typeof line === "string") {
-      const lineNumber = parseInt(line, 10);
-      if (!isNaN(lineNumber)) {
-        console.log("lineNumber", lineNumber);
-        setUrlLine(lineNumber);
-        setSelectedLine(lineNumber);
-
-        // Automatically open the right sidebar
-        setIsExpandedRight(true);
-
-        // Add this new code to scroll to the selected line
-        setTimeout(() => {
-          const markdownContainer = markdownRef.current;
-          if (markdownContainer) {
-            const elements = markdownContainer.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li");
-            const targetElement = elements[lineNumber - 1] as HTMLElement;
-            if (targetElement) {
-              targetElement.scrollIntoView({ behavior: "smooth", block: "start" });
-            }
-          }
-        }, 100);
-      }
-    }
-  }, [router.query]);
 
   const toggleExpand = () => {
     setIsExpanded(!isExpanded);
@@ -166,6 +142,7 @@ const ETHSpace: NextPage<ETHSpaceProps> = ({
     router.push({ query: { ...router.query, lang } }, undefined, { shallow: true });
   };
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const handleLineClick = (lineNumber: number, event: React.MouseEvent) => {
     console.log("lineNumber", lineNumber);
     console.log("event", event);
@@ -180,39 +157,63 @@ const ETHSpace: NextPage<ETHSpaceProps> = ({
     setClickPosition({ x: event.clientX, y: viewportTopY + 100 });
   };
 
+
   useEffect(() => {
-    const markdownContainer = markdownRef.current;
-    if (markdownContainer) {
-      const elements = markdownContainer.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li");
-      elements.forEach((element, index) => {
-        const lineNumber = index + 1;
-        if (combinedNotesLines.has(lineNumber)) {
-          // TODO: use the blue underline instead of bg-yellow-100, not spec background color.
-          element.style.textDecoration = "underline";
-          element.style.textDecorationStyle = "dotted";
-        } else {
-          element.style.textDecoration = "none";
-          // Remove highlight if not in notesLines
-        }
-      });
-
-      const handleClick = (event: MouseEvent) => {
-        const target = event.target as HTMLElement;
-        if (target.tagName.match(/H[1-6]|P|LI/)) {
-          const lineNumber =
-            Array.from(markdownContainer.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li")).indexOf(target) + 1;
-
-          handleLineClick(lineNumber, event);
-        }
-      };
-
-      markdownContainer.addEventListener("click", handleClick);
-
-      return () => {
-        markdownContainer.removeEventListener("click", handleClick);
-      };
+    // Handle query params
+    const { lang, line } = router.query;
+    if (lang && (lang === "en" || lang === "cn")) {
+      setLanguage(lang);
     }
-  }, [language, notesLines]); // Add notesLines to the dependency array
+
+    // Get markdown container reference
+    const markdownContainer = markdownRef.current;
+    if (!markdownContainer) return;
+
+    // Get all markdown elements
+    const elements = markdownContainer.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li");
+
+    // Handle line decoration
+    elements.forEach((element, index) => {
+      const lineNumber = index + 1;
+      (element as HTMLElement).style.textDecoration = combinedNotesLines.has(lineNumber) 
+        ? "underline" 
+        : "none";
+      (element as HTMLElement).style.textDecorationStyle = combinedNotesLines.has(lineNumber) 
+        ? "dotted" 
+        : "none";
+    });
+
+    // Handle click events
+    const handleClick = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (target.tagName.match(/H[1-6]|P|LI/)) {
+        const lineNumber = Array.from(elements).indexOf(target) + 1;
+        handleLineClick(lineNumber, event);
+      }
+    };
+    markdownContainer.addEventListener("click", handleClick);
+
+    // Handle URL line parameter
+    if (typeof line === "string") {
+      const lineNumber = parseInt(line, 10);
+      if (!isNaN(lineNumber)) {
+        setUrlLine(lineNumber);
+        setSelectedLine(lineNumber);
+        setIsExpandedRight(true);
+
+        // Scroll to selected line
+        setTimeout(() => {
+          const targetElement = elements[lineNumber - 1] as HTMLElement;
+          if (targetElement) {
+            targetElement.scrollIntoView({ behavior: "smooth", block: "start" });
+          }
+        }, 500);
+      }
+    }
+
+    // Cleanup
+    return () => markdownContainer.removeEventListener("click", handleClick);
+  }, [router.query, combinedNotesLines, handleLineClick, language, notesLines]);
 
   const handleSubmitNote = async () => {
     if (!selectedLine || !newNoteWord || !newNoteContent) return;
@@ -343,8 +344,92 @@ const ETHSpace: NextPage<ETHSpaceProps> = ({
     );
   };
 
+  const [showInfoBox, setShowInfoBox] = useState(false);
+
+  useEffect(() => {
+    const { show_info } = router.query;
+    setShowInfoBox(show_info === "true");
+  }, [router.query]);
+
+  // Add this mock data near the top of your component
+  const mockTransactions = [
+    { emoji: "🌋", address: "0xd8", action: "bought", amount: "0.08", price: "1.280" },
+    { emoji: "🦭", address: "0xe0", action: "sold", amount: "0.181", price: "2.911" },
+    { emoji: "🍻", address: "0x5E", action: "bought", amount: "0.51", price: "8.312" },
+    { emoji: "🐚", address: "0xe0", action: "bought", amount: "1.6", price: "2.7144" },
+    { emoji: "🐣", address: "0x66", action: "bought", amount: "0.01", price: "0.175" },
+  ];
+
   return (
     <>
+      {showInfoBox && (
+        <div className="fixed inset-0 flex items-center justify-center z-50 bg-black bg-opacity-50">
+          <div className="bg-base-100 p-6 rounded-lg shadow-xl max-w-2xl w-full mx-4 relative">
+            <button
+              onClick={() => setShowInfoBox(false)}
+              className="absolute top-2 right-2 p-2 hover:bg-base-200 rounded-full"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                className="h-6 w-6"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h3 className="text-lg font-bold mb-4 text-center">Bitcoin Whitepaper as a Company!</h3>
+            <p className="mb-4">
+              {/* TODO: make the info changable in the future */}
+              <center>
+                <b>Bodhi ID: </b>#0
+              </center>
+              <br />
+              <center>
+                <b>Arweave ID</b>
+              </center>
+              <center>
+                <a
+                  href="https://arweave.net/9RpCQzfhB_nE4YDA--_Xx_WL1h-pHp3Ejm0fz-L1TNE"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-500 underline"
+                >
+                  9RpCQzfhB_nE4YDA--_Xx_WL1h-pHp3Ejm0fz-L1TNE
+                </a>
+              </center>
+              <center>
+                <br />
+                <b>Price for each shares</b>
+                <br />
+                <b>🔥 1.280 HSK 🔥</b>
+              </center>
+              <br />
+              <center>
+                <b>Tx History</b>
+              </center>
+            </p>
+            <center>
+              <div className="mt-4 max-h-40 overflow-y-auto">
+                {mockTransactions.map((tx, index) => (
+                  <div key={index} className="text-sm mb-2">
+                    <span>
+                      {tx.emoji} {tx.address} {tx.action} {tx.amount} share for {tx.price} HSK
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </center>
+
+            <center className="mt-4">
+              <button className="btn btn-primary">Buy Shares</button>
+              &nbsp;&nbsp;&nbsp;&nbsp;
+              <button className="btn btn-primary">Sell Shares</button>
+            </center>
+          </div>
+        </div>
+      )}
       <div className="flex h-screen bg-base-300">
         <div
           className={clsx(
@@ -438,8 +523,8 @@ const ETHSpace: NextPage<ETHSpaceProps> = ({
 };
 
 export const getStaticProps = async () => {
-  const filePathCn = path.join(process.cwd(), "public", "assets", "indiehacker-handbook-cn.md");
-  const filePathEn = path.join(process.cwd(), "public", "assets", "indiehacker-handbook-en.md");
+  const filePathCn = path.join(process.cwd(), "public", "assets", "bitcoin-whitepaper-en.md");
+  const filePathEn = path.join(process.cwd(), "public", "assets", "bitcoin-whitepaper-en.md");
   const markdownContentCn = fs.readFileSync(filePathCn, "utf-8");
   const markdownContentEn = fs.readFileSync(filePathEn, "utf-8");
 

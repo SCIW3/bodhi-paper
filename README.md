@@ -8,10 +8,10 @@
 
 Tokenized Paper, make paper/book as a company with shares, and could be reviewed by **everybody** .
 
-> Smart Contract:
+> Smart Contracts:
 >
-> TODO
->
+> * bodhi: [0x6cF202C9f795D90B3c2C8e8364Cf77008B2c18b1](https://hashkeychain-testnet-explorer.alt.technology/address/0x6cF202C9f795D90B3c2C8e8364Cf77008B2c18b1?tab=contract_code)
+>* on-chain-book(for onchain comments): [0xCE298aC4E50e2ad5e8608CCF914A7903eF672919](https://hashkeychain-testnet-explorer.alt.technology/address/0xCE298aC4E50e2ad5e8608CCF914A7903eF672919?tab=contract)
 
 ## Quickstart
 

@@ -39,28 +39,28 @@ const scaffoldConfig = {
   //   testnet: true,
   // } as Chain,
   targetNetwork: {
-    id: 12227332,
-    name: "Neo",
-    network: "neo",
+    id: 133,
+    name: "hashkeyTestnet",
+    network: "hashkeyTestnet",
     nativeCurrency: {
-      name: "Gas",
-      symbol: "GAS",
+      name: "HSK",
+      symbol: "HSK",
       decimals: 18,
     },
     rpcUrls: {
       default: {
-        http: ["https://neoxt4seed1.ngd.network"],
+        http: ["https://hashkeychain-testnet.alt.technology"],
       },
       public: {
-        http: ["https://neoxt4seed1.ngd.network"],
+        http: ["https://hashkeychain-testnet.alt.technology"],
       },
     },
-    // blockExplorers: {
-    //   default: {
-    //     name: "NeoScan",
-    //     url: "https://xt4scan.ngd.network/",
-    //   },
-    // },
+    blockExplorers: {
+      default: {
+        name: "Hashscan",
+        url: "https://hashkeychain-testnet-explorer.alt.technology/",
+      },
+    },
     testnet: true,
   } as Chain,
 
